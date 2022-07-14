@@ -1,0 +1,44 @@
+models:
+  G:
+    class: models.generator.FTGAN_DA
+
+    submodules:
+      style_DA:
+        num_adapters: 3
+      char_DA:
+        num_adapters: 3
+
+    ngf: 64
+    n_blocks: 6
+
+    optim:
+      class: torch.optim.Adam
+      betas: [ 0.5, 0.999 ]
+      lr: 0.0002
+      lr_policy: step
+      lr_decay_iters: 1000
+
+    init_type: normal
+    init_gain: 0.02
+
+  D_content:
+    class: models.discriminator.CustomDiscriminator
+    channel:
+      in: 1
+    optim:
+      class: torch.optim.Adam
+      betas: [ 0.5, 0.999 ]
+      lr: 2e-4
+      lr_policy: step
+      lr_decay_iters: 1000
+
+  D_style:
+    class: models.discriminator.CustomDiscriminator
+    channel:
+      in: 6
+    optim:
+      class: torch.optim.Adam
+      betas: [ 0.5, 0.999 ]
+      lr: 2e-4
+      lr_policy: step
+      lr_decay_iters: 1000

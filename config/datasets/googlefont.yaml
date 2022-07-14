@@ -1,0 +1,42 @@
+datasets:
+  train:
+    dataset: GoogleFontDataset
+
+    mode: train
+    split: auto
+
+    imsize: 64
+    reference_imgs:
+      replace: False
+      char: 5
+      # style: 5
+
+    squeeze_gray: True
+    transform:
+    # TODO
+
+    # loader configs
+    shuffle: True
+    batch_size: 64
+    num_workers: 8
+
+  eval:
+    dataset: GoogleFontDataset
+    
+    mode: eval
+    split: auto
+
+    imsize: 64
+    reference_imgs:
+      replace: False
+      char: 5
+      style: 5
+
+    squeeze_gray: True
+    transform:
+    # TODO
+
+    # loader configs
+    shuffle: True
+    batch_size: 1
+    num_workers: 4

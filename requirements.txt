@@ -1,0 +1,4 @@
+pytorch-lightning
+omegaconf
+fire
+lpips

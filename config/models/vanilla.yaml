@@ -1,16 +1,18 @@
 models:
   G:
-    class: models.generator.FTGAN_DA
-
-    submodules:
-      style_DA:
-        num_adapters: 3
-      char_DA:
-        num_adapters: 3
-
-    ngf: 64
-    n_blocks: 6
-
+    encoder:
+      type:
+        content:
+          type: ContentVanillaEncoder
+          depth: 2
+        style:
+          type: StyleVanillaEncoder
+          depth: 2
+        decoder:
+          type: VanillaDecoder
+          residual_blocks: 6
+          depth: 2
+    
     optim:
       class: torch.optim.Adam
       betas: [ 0.5, 0.999 ]
@@ -22,9 +24,8 @@ models:
     init_gain: 0.02
 
   D_content:
+    in_channels: 1
     class: models.discriminator.CustomDiscriminator
-    channel:
-      in: 1
     optim:
       class: torch.optim.Adam
       betas: [ 0.5, 0.999 ]
@@ -33,9 +34,8 @@ models:
       lr_decay_iters: 1000
 
   D_style:
+    in_channels: 6
     class: models.discriminator.CustomDiscriminator
-    channel:
-      in: 6
     optim:
       class: torch.optim.Adam
       betas: [ 0.5, 0.999 ]

@@ -1,15 +1,13 @@
 datasets:
+  type: GoogleFontDataset
   train:
-    dataset: GoogleFontDataset
-
-    mode: train
     split: auto
 
     imsize: 64
     reference_imgs:
       replace: False
-      char: 5
-      # style: 5
+      char: 1
+      style: 5
 
     squeeze_gray: True
     transform:
@@ -21,15 +19,12 @@ datasets:
     num_workers: 8
 
   eval:
-    dataset: GoogleFontDataset
-    
-    mode: eval
     split: auto
 
     imsize: 64
     reference_imgs:
       replace: False
-      char: 5
+      char: 1
       style: 5
 
     squeeze_gray: True

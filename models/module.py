@@ -133,12 +133,13 @@ class FTransGANAttentionBlock(nn.Module):
     """from FTransGAN
     """
     def __init__(self, in_channels):
+        super().__init__()
         self.num_local_attention = 3
         for module_idx in range(1, self.num_local_attention + 1):
             self.add_module(f"local_attention_{module_idx}",
                             FTransGANLocalAttentionBlock(in_channels))
             
-        for module_idx in range(1, self.num_local_attention - 1):
+        for module_idx in range(1, self.num_local_attention):
             self.add_module(f"downsample_{module_idx}",
                             nn.Sequential(
                 nn.Conv2d(in_channels, in_channels,
@@ -158,6 +159,6 @@ class FTransGANAttentionBlock(nn.Module):
         x = self.downsample_2(x)
         feature_3 = self.local_attention_3(x)
 
-        out = self.layer_atten(x, feature_1, feature_2, feature_3, B, K)
+        out = self.layer_attention(x, feature_1, feature_2, feature_3, B, K)
 
         return out

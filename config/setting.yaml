@@ -1,5 +1,5 @@
 config:
-  dataset: 'config/datasets/googe_font.yaml'
+  dataset: 'config/datasets/googlefont.yaml'
   model: 'config/models/vanilla.yaml'
   logging: 'config/logging.yaml'
   lightning: 'config/lightning.yaml'

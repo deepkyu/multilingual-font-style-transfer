@@ -6,19 +6,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # FIXME
-class CustomDiscriminator(nn.Module):
+class Discriminator(nn.Module):
     """Defines a PatchGAN discriminator"""
-    def __init__(self, hp, in_channels, ndf=64, n_layers=3, norm_layer=nn.BatchNorm2d):
+    def __init__(self, hp, ndf=64, n_layers=3, norm_layer=nn.BatchNorm2d):
         """Construct a PatchGAN discriminator
 
         Parameters:
-            in_channels (int) -- the number of feature dimension of the input
             ndf (int)       -- the number of filters in the last conv layer
             n_layers (int)  -- the number of conv layers in the discriminator
             norm_layer      -- normalization layer
         """
         super().__init__()
         self.hp = hp
+        in_channels = hp.in_channels
 
         if type(norm_layer) == functools.partial:  # no need to use bias as BatchNorm2d has affine parameters
             use_bias = norm_layer.func == nn.InstanceNorm2d

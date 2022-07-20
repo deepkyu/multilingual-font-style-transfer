@@ -1,6 +1,5 @@
 from evaluator.dataset import ClassifierDataset
 from evaluator.classifier import Classifier
-import matplotlib.pyplot as plt
 import torch
 import time
 from torch.utils.data import DataLoader

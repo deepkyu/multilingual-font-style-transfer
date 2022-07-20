@@ -2,6 +2,14 @@ from pathlib import Path
 import shutil
 from collections import OrderedDict
 
+def override(func):
+    """decorator to alert that the function is overrided
+
+    """
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    return wrapper
+
 def save_files(path_save_, savefiles):
     path_save = Path(path_save_)
     path_save.mkdir(exist_ok=True)

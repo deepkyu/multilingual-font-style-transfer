@@ -8,7 +8,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
 from lightning import FontLightningModule
-from utils.logger import save_files
+from utils import save_files
 
 def load_configuration(path_config):
     setting = OmegaConf.load(path_config)
@@ -21,6 +21,8 @@ def load_configuration(path_config):
     # with lightning setting
     if hasattr(setting.config, 'lightning'):
         pl_config = OmegaConf.load(setting.config.lightning)
+        if hasattr(pl_config, 'pl_config'):
+            return hp, pl_config.pl_config
         return hp, pl_config
     
     # without lightning setting
@@ -29,7 +31,7 @@ def load_configuration(path_config):
 def parse_args():
     parser = argparse.ArgumentParser(description='Code to train font style transfer')
 
-    parser.add_argument("--config", type=str, default="./configs/setting.yaml",
+    parser.add_argument("--config", type=str, default="./config/setting.yaml",
                         help="Config file for training")
     parser.add_argument('-g', '--gpus', type=str, default=None,
                         help="Number of gpus to use (e.g. '0,1,2,3'). Will use all if not given.")

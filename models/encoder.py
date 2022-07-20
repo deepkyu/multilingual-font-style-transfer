@@ -1,7 +1,6 @@
-from turtle import forward
 import torch
 import torch.nn as nn
-from models.module import FTransGANAttentionBlock
+from .module import FTransGANAttentionBlock
 
 _ENCODER_CHANNEL_DEFAULT = 256
 class Encoder(nn.Module):

@@ -25,18 +25,18 @@ class VanillaDecoder(Decoder):
         
         for layer_idx in range(1, self.depth + 1):  # add upsampling layers
             self.module.append(nn.Sequential(
-                nn.ConvTranspose2d(out_channels // (2 ** (layer_idx - 1)),
-                                   out_channels // (2 ** layer_idx),
+                nn.ConvTranspose2d(in_channels // (2 ** (layer_idx - 1)),
+                                   in_channels // (2 ** layer_idx),
                                    kernel_size=3, stride=2,
                                    padding=1, output_padding=1,
                                    bias=False),
-                nn.BatchNorm2d(out_channels // (2 ** layer_idx)),
+                nn.BatchNorm2d(in_channels // (2 ** layer_idx)),
                 nn.ReLU(True)
             ))
             
         final = nn.Sequential(
             nn.ReflectionPad2d(3),
-            nn.Conv2d(out_channels // (2 ** self.depth), out_channels, kernel_size=7, padding=0),
+            nn.Conv2d(in_channels // (2 ** self.depth), out_channels, kernel_size=7, padding=0),
             nn.Tanh()
         )
         

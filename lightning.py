@@ -2,14 +2,16 @@ import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
+from torch.utils.data import DataLoader
 import pytorch_lightning as pl
+import importlib
 
 import models
 import datasets
 from evaluator.ssim import SSIM, MSSSIM
 import lpips
-from models.loss import GANLoss
-from utils import set_logger, magic_image_handler
+from models.loss import GANHingeLoss
+from utils import set_logger, magic_image_handler, override
 
 
 class FontLightningModule(pl.LightningModule):
@@ -28,34 +30,19 @@ class FontLightningModule(pl.LightningModule):
         self.opt_tag = {key: None for key in self.networks.keys()}
         self.sched_tag = {key: None for key in self.networks.keys()}
         self.sched_use = False
-
-    def train_dataloader(self):
-        args_dataset = self.args.datasets['train']
-        D = getattr(datasets, args_dataset['dataset'])
-        train_dataset = D(args_dataset, mode='train')
-        train_dataloader = DataLoader(train_dataset, shuffle=args_dataset['shuffle'],
-                                      batch_size=args_dataset['batch_size'],
-                                      num_workers=args_dataset['num_workers'], drop_last=True, )
-
-        return train_dataloader
-
-    def val_dataloader(self):
-        args_dataset = self.args.datasets['eval']
-        D = getattr(datasets, args_dataset['dataset'])
-        eval_dataset = D(args_dataset, mode='eval')
-        eval_dataloader = DataLoader(eval_dataset, shuffle=args_dataset['shuffle'],
-                                     batch_size=args_dataset['batch_size'],
-                                     num_workers=args_dataset['num_workers'], drop_last=True, )
-
-        return eval_dataloader
-
+    
     def build_models(self):
         networks = {}
-        for key, conf_model in self.args.models.items():
-            module, cls = conf_model['class'].rsplit(".", 1)
-            M = getattr(importlib.import_module(module, package=None), cls)
-            m = M(conf_model)
-            networks[key.lower()] = m
+        for key, hp_model in self.args.models.items():
+            key_ = key.lower()
+            if 'g' == key_[0]:
+                model_ = models.Generator(hp_model)
+            elif 'd' == key_[0]:
+                model_ = models.Discriminator(hp_model)
+            else:
+                raise ValueError(f"No key such as {key}")
+
+            networks[key.lower()] = model_
         return networks
 
     def build_losses(self):
@@ -63,9 +50,9 @@ class FontLightningModule(pl.LightningModule):
         losses_dict['L1'] = torch.nn.L1Loss()
 
         if 'd_content' in self.module_keys:
-            losses_dict['GANLoss_content'] = GANLoss(self.args.logging.gan_loss)
+            losses_dict['GANLoss_content'] = GANHingeLoss()
         if 'd_style' in self.module_keys:
-            losses_dict['GANLoss_style'] = GANLoss(self.args.logging.gan_loss)
+            losses_dict['GANLoss_style'] = GANHingeLoss()
 
         return losses_dict
 
@@ -75,7 +62,11 @@ class FontLightningModule(pl.LightningModule):
         metrics_dict['msssim'] = MSSSIM(weights=[0.45, 0.3, 0.25], val_range=1)  # since imsize=64, len(weight)<=3
         metrics_dict['lpips'] = lpips.LPIPS(net='vgg')
         return metrics_dict
+            
+    
+    
 
+    @override
     def configure_optimizers(self):
         optims = {}
         for key, args_model in self.args.models.items():
@@ -102,13 +93,121 @@ class FontLightningModule(pl.LightningModule):
 
         return optim_list
 
+    @override
     @property
     def automatic_optimization(self):
         return False
 
+    @override
     def forward(self, content_images, style_images):
         return self.networks['g']((content_images, style_images))
 
+    def common_forward(self, batch, batch_idx):
+        loss = {}
+        metrics = {}
+        logs = {}
+        
+        content_images = batch['content_images']
+        style_images = batch['style_images']
+        gt_images = batch['gt_images']
+        image_paths = batch['image_paths']
+        char_idx = batch['char_idx']
+
+        generated_images = self(content_images, style_images)
+
+        # l1 loss
+        loss['g_L1'] = self.losses['L1'](generated_images, gt_images)
+        loss['g_backward'] = loss['g_L1'] * self.args.logging.lambda_L1
+
+        # loss for training generator
+        if 'd_content' in self.module_keys:
+            loss = self.d_content_loss_for_G(content_images, generated_images, loss)
+
+        if 'd_style' in self.networks.keys():
+            loss = self.d_style_loss_for_G(style_images, generated_images, loss)
+
+        # loss for training discriminator 
+        generated_images = generated_images.detach()
+
+        if 'd_content' in self.module_keys:
+            if self.train_d_content:
+                loss = self.d_content_loss_for_D(content_images, generated_images, gt_images, loss)
+
+        if 'd_style' in self.module_keys:
+            if self.train_d_style:
+                loss = self.d_style_loss_for_D(style_images, generated_images, gt_images, loss)
+
+        logs['content_images'] = content_images
+        logs['style_images'] = style_images
+        logs['gt_images'] = gt_images
+        logs['generated_images'] = generated_images
+
+        if self.global_step % self.args.logging.freq['train'] == 0:
+            with torch.no_grad():
+                metrics.update(self.calc_metrics(gt_images, generated_images))
+
+        return loss, logs, metrics
+
+    @override
+    def training_step(self, batch, batch_idx):
+        # forward
+        loss, logs, metrics = self.common_forward(batch, batch_idx)
+
+        # backward
+        opts = self.optimizers()
+
+        opts[self.opt_tag['g']].zero_grad()
+        self.manual_backward(loss['g_backward'])
+
+        if 'd_content' in self.module_keys:
+            if self.train_d_content:
+                opts[self.opt_tag['d_content']].zero_grad()
+                self.manual_backward(loss['dcontent_backward'])
+
+        if 'd_style' in self.module_keys:
+            if self.train_d_style:
+                opts[self.opt_tag['d_style']].zero_grad()
+                self.manual_backward(loss['dstyle_backward'])
+
+        opts[self.opt_tag['g']].step()
+
+        if 'd_content' in self.module_keys:
+            if self.train_d_content:
+                opts[self.opt_tag['d_content']].step()
+
+        if 'd_style' in self.module_keys:
+            if self.train_d_style:
+                opts[self.opt_tag['d_style']].step()
+
+        if self.global_step % self.args.logging.freq['train'] == 0:
+            self.custom_log(loss, metrics, logs, mode='train')
+    
+    @override
+    def validation_step(self, batch, batch_idx):
+        loss, logs, metrics = self.common_forward(batch, batch_idx)
+        self.custom_log(loss, metrics, logs, mode='eval')
+        
+    def common_dataloader(self, mode='train'):
+        dataset_cls = getattr(datasets, self.args.datasets.type)
+        dataset_config = getattr(self.args.datasets, mode)
+        dataset = dataset_cls(dataset_config, mode=mode)
+        dataloader = DataLoader(dataset,
+                                shuffle=dataset_config.shuffle,
+                                batch_size=dataset_config.batch_size,
+                                num_workers=dataset_config.num_workers,
+                                drop_last=True)
+
+        return dataloader
+
+    @override
+    def train_dataloader(self):
+        return self.common_dataloader(mode='train')
+
+    @override
+    def val_dataloader(self):
+        return self.common_dataloader(mode='eval')
+    
+    
     def calc_metrics(self, gt_images, generated_images):
         """
 
@@ -166,90 +265,7 @@ class FontLightningModule(pl.LightningModule):
         loss['dstyle_backward'] = (loss['dstyle_gt'] + loss['dstyle_gen'])
 
         return loss
-
-    def common_forward(self, batch, batch_idx):
-        loss = {}
-        metrics = {}
-        logs = {}
-        
-        content_images = batch['content_images']
-        style_images = batch['style_images']
-        gt_images = batch['gt_images']
-        image_paths = batch['image_paths']
-        char_idx = batch['char_idx']
-
-        generated_images = self(content_images, style_images)
-
-        # l1 loss
-        loss['g_L1'] = self.losses['L1'](generated_images, gt_images)
-        loss['g_backward'] = loss['g_L1'] * self.args.logging.lambda_L1
-
-        # loss for training generator
-        if 'd_content' in self.module_keys:
-            loss = self.d_content_loss_for_G(content_images, generated_images, loss)
-
-        if 'd_style' in self.networks.keys():
-            loss = self.d_style_loss_for_G(style_images, generated_images, loss)
-
-        # loss for training discriminator 
-        generated_images = generated_images.detach()
-
-        if 'd_content' in self.module_keys:
-            if self.train_d_content:
-                loss = self.d_content_loss_for_D(content_images, generated_images, gt_images, loss)
-
-        if 'd_style' in self.module_keys:
-            if self.train_d_style:
-                loss = self.d_style_loss_for_D(style_images, generated_images, gt_images, loss)
-
-        logs['content_images'] = content_images
-        logs['style_images'] = style_images
-        logs['gt_images'] = gt_images
-        logs['generated_images'] = generated_images
-
-        if self.global_step % self.args.logging.freq['train'] == 0:
-            with torch.no_grad():
-                metrics.update(self.calc_metrics(gt_images, generated_images))
-
-        return loss, logs, metrics
-
-    def training_step(self, batch, batch_idx):
-        # forward
-        loss, logs, metrics = self.common_forward(batch, batch_idx)
-
-        # backward
-        opts = self.optimizers()
-
-        opts[self.opt_tag['g']].zero_grad()
-        self.manual_backward(loss['g_backward'])
-
-        if 'd_content' in self.module_keys:
-            if self.train_d_content:
-                opts[self.opt_tag['d_content']].zero_grad()
-                self.manual_backward(loss['dcontent_backward'])
-
-        if 'd_style' in self.module_keys:
-            if self.train_d_style:
-                opts[self.opt_tag['d_style']].zero_grad()
-                self.manual_backward(loss['dstyle_backward'])
-
-        opts[self.opt_tag['g']].step()
-
-        if 'd_content' in self.module_keys:
-            if self.train_d_content:
-                opts[self.opt_tag['d_content']].step()
-
-        if 'd_style' in self.module_keys:
-            if self.train_d_style:
-                opts[self.opt_tag['d_style']].step()
-
-        if self.global_step % self.args.logging.freq['train'] == 0:
-            self.custom_log(loss, metrics, logs, mode='train')
-
-    def validation_step(self, batch, batch_idx):
-        loss, logs, metrics = self.common_forward(batch, batch_idx)
-        self.custom_log(loss, metrics, logs, mode='eval')
-
+    
     def custom_log(self, loss, metrics, logs, mode):
         # logging values with tensorboard
         for loss_full_key, value in loss.items():

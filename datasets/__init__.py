@@ -1,1 +1,1 @@
-from dataset.googlefont import GoogleFontDataset
+from .googlefont import GoogleFontDataset

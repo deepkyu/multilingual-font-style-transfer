@@ -1,12 +1,11 @@
 logging:
   dry_run: False
   device: cuda
-  log_dir: /DATA1/hksong/logs/font
+  log_dir: /data2/hksong/LOG/font
   seed: google-font-patch-full
   freq:
     train: 100 # step
 
-  nepochs: 100
   nepochs_decay: 100
 
   gan_loss: lsgan

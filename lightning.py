@@ -30,7 +30,8 @@ class FontLightningModule(pl.LightningModule):
         self.opt_tag = {key: None for key in self.networks.keys()}
         self.sched_tag = {key: None for key in self.networks.keys()}
         self.sched_use = False
-    
+        self.automatic_optimization = False
+
     def build_models(self):
         networks = {}
         for key, hp_model in self.args.models.items():
@@ -62,9 +63,6 @@ class FontLightningModule(pl.LightningModule):
         metrics_dict['msssim'] = MSSSIM(weights=[0.45, 0.3, 0.25], val_range=1)  # since imsize=64, len(weight)<=3
         metrics_dict['lpips'] = lpips.LPIPS(net='vgg')
         return metrics_dict
-            
-    
-    
 
     @override
     def configure_optimizers(self):
@@ -94,11 +92,6 @@ class FontLightningModule(pl.LightningModule):
         return optim_list
 
     @override
-    @property
-    def automatic_optimization(self):
-        return False
-
-    @override
     def forward(self, content_images, style_images):
         return self.networks['g']((content_images, style_images))
 
@@ -106,7 +99,7 @@ class FontLightningModule(pl.LightningModule):
         loss = {}
         metrics = {}
         logs = {}
-        
+
         content_images = batch['content_images']
         style_images = batch['style_images']
         gt_images = batch['gt_images']
@@ -126,7 +119,7 @@ class FontLightningModule(pl.LightningModule):
         if 'd_style' in self.networks.keys():
             loss = self.d_style_loss_for_G(style_images, generated_images, loss)
 
-        # loss for training discriminator 
+        # loss for training discriminator
         generated_images = generated_images.detach()
 
         if 'd_content' in self.module_keys:
@@ -156,43 +149,44 @@ class FontLightningModule(pl.LightningModule):
         # backward
         opts = self.optimizers()
 
-        opts[self.opt_tag['g']].zero_grad()
+        # opts[self.opt_tag['g']].zero_grad()
+        opts.zero_grad()
         self.manual_backward(loss['g_backward'])
 
-        if 'd_content' in self.module_keys:
-            if self.train_d_content:
-                opts[self.opt_tag['d_content']].zero_grad()
-                self.manual_backward(loss['dcontent_backward'])
+        # if 'd_content' in self.module_keys:
+        #     if self.train_d_content:
+        #         opts[self.opt_tag['d_content']].zero_grad()
+        #         self.manual_backward(loss['dcontent_backward'])
 
-        if 'd_style' in self.module_keys:
-            if self.train_d_style:
-                opts[self.opt_tag['d_style']].zero_grad()
-                self.manual_backward(loss['dstyle_backward'])
+        # if 'd_style' in self.module_keys:
+        #     if self.train_d_style:
+        #         opts[self.opt_tag['d_style']].zero_grad()
+        #         self.manual_backward(loss['dstyle_backward'])
 
-        opts[self.opt_tag['g']].step()
+        opts.step()
 
-        if 'd_content' in self.module_keys:
-            if self.train_d_content:
-                opts[self.opt_tag['d_content']].step()
+        # if 'd_content' in self.module_keys:
+        #     if self.train_d_content:
+        #         opts[self.opt_tag['d_content']].step()
 
-        if 'd_style' in self.module_keys:
-            if self.train_d_style:
-                opts[self.opt_tag['d_style']].step()
+        # if 'd_style' in self.module_keys:
+        #     if self.train_d_style:
+        #         opts[self.opt_tag['d_style']].step()
 
         if self.global_step % self.args.logging.freq['train'] == 0:
             self.custom_log(loss, metrics, logs, mode='train')
-    
+
     @override
     def validation_step(self, batch, batch_idx):
         loss, logs, metrics = self.common_forward(batch, batch_idx)
         self.custom_log(loss, metrics, logs, mode='eval')
-        
+
     def common_dataloader(self, mode='train'):
         dataset_cls = getattr(datasets, self.args.datasets.type)
         dataset_config = getattr(self.args.datasets, mode)
         dataset = dataset_cls(dataset_config, mode=mode)
         dataloader = DataLoader(dataset,
-                                shuffle=dataset_config.shuffle,
+                                shuffle=dataset_config.shuffle if mode == 'train' else False,
                                 batch_size=dataset_config.batch_size,
                                 num_workers=dataset_config.num_workers,
                                 drop_last=True)
@@ -206,8 +200,7 @@ class FontLightningModule(pl.LightningModule):
     @override
     def val_dataloader(self):
         return self.common_dataloader(mode='eval')
-    
-    
+
     def calc_metrics(self, gt_images, generated_images):
         """
 
@@ -265,7 +258,7 @@ class FontLightningModule(pl.LightningModule):
         loss['dstyle_backward'] = (loss['dstyle_gt'] + loss['dstyle_gen'])
 
         return loss
-    
+
     def custom_log(self, loss, metrics, logs, mode):
         # logging values with tensorboard
         for loss_full_key, value in loss.items():

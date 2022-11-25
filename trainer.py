@@ -10,30 +10,32 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from lightning import FontLightningModule
 from utils import save_files
 
+
 def load_configuration(path_config):
     setting = OmegaConf.load(path_config)
-    
+
     # load hyperparameter
     hp = OmegaConf.load(setting.config.dataset)
     hp = OmegaConf.merge(hp, OmegaConf.load(setting.config.model))
     hp = OmegaConf.merge(hp, OmegaConf.load(setting.config.logging))
-    
+
     # with lightning setting
     if hasattr(setting.config, 'lightning'):
         pl_config = OmegaConf.load(setting.config.lightning)
         if hasattr(pl_config, 'pl_config'):
             return hp, pl_config.pl_config
         return hp, pl_config
-    
+
     # without lightning setting
     return hp
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Code to train font style transfer')
 
     parser.add_argument("--config", type=str, default="./config/setting.yaml",
                         help="Config file for training")
-    parser.add_argument('-g', '--gpus', type=str, default=None,
+    parser.add_argument('-g', '--gpus', type=str, default='0,1',
                         help="Number of gpus to use (e.g. '0,1,2,3'). Will use all if not given.")
     parser.add_argument('-p', '--resume_checkpoint_path', type=str, default=None,
                         help="path of checkpoint for resuming")
@@ -45,7 +47,7 @@ def parse_args():
 def main():
     args = parse_args()
     hp, pl_config = load_configuration(args.config)
-    
+
     logging_dir = Path(hp.logging.log_dir)
 
     # call lightning module
@@ -61,7 +63,7 @@ def main():
 
     # set tensorboard logger
     logger = TensorBoardLogger(str(logging_dir), name=str(hp.logging.seed))
-    
+
     # set checkpoing callback
     weights_save_path = logging_dir / 'checkpoint'
     checkpoint_callback = ModelCheckpoint(
@@ -78,9 +80,10 @@ def main():
         resume_from_checkpoint=args.resume_checkpoint_path,
         **pl_config.trainer
     )
-    
+
     # let's train
     trainer.fit(font_pl)
+
 
 if __name__ == "__main__":
     main()

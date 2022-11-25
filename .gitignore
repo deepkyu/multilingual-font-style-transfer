@@ -1,24 +1,22 @@
-#
+# block temp directory
 .idea/
 __pycache__/
 .ipynb_checkpoints/
 .vscode/
+.temp/
 
-#
-/data
-/src
-**.pkl
+# block extension
+*.pkl
+*.png
+*.pth
+*.json
 
-#
-/logs
-/wandb
-/eval
-/eval_results
+# block logging directory
+logs/
+wandb/
 
-
-#
-temp.py
-ECK_withD/
-
-google_ofl_metadata.json
+# custom
 font-image
+
+# except
+!google_ofl_metadata.json

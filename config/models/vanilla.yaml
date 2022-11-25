@@ -1,0 +1,43 @@
+models:
+  G:
+    encoder:
+      content:
+        type: ContentVanillaEncoder
+        depth: 2
+      style:
+        type: StyleVanillaEncoder
+        depth: 2
+    decoder:
+      type: VanillaDecoder
+      residual_blocks: 6
+      depth: 2
+    
+    optim:
+      class: torch.optim.Adam
+      betas: [ 0.5, 0.999 ]
+      lr: 0.0002
+      lr_policy: step
+      lr_decay_iters: 1000
+
+    init_type: normal
+    init_gain: 0.02
+
+  # D_content:
+  #   in_channels: 2
+  #   class: models.discriminator.CustomDiscriminator
+  #   optim:
+  #     class: torch.optim.Adam
+  #     betas: [ 0.5, 0.999 ]
+  #     lr: 2e-4
+  #     lr_policy: step
+  #     lr_decay_iters: 1000
+
+  # D_style:
+  #   in_channels: 6
+  #   class: models.discriminator.CustomDiscriminator
+  #   optim:
+  #     class: torch.optim.Adam
+  #     betas: [ 0.5, 0.999 ]
+  #     lr: 2e-4
+  #     lr_policy: step
+  #     lr_decay_iters: 1000

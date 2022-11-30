@@ -30,7 +30,10 @@ class FontLightningModule(pl.LightningModule):
         self.opt_tag = {key: None for key in self.networks.keys()}
         self.sched_tag = {key: None for key in self.networks.keys()}
         self.sched_use = False
-        self.automatic_optimization = False
+        # self.automatic_optimization = False
+
+        self.train_d_content = True
+        self.train_d_style = True
 
     def build_models(self):
         networks = {}
@@ -39,7 +42,7 @@ class FontLightningModule(pl.LightningModule):
             if 'g' == key_[0]:
                 model_ = models.Generator(hp_model)
             elif 'd' == key_[0]:
-                model_ = models.Discriminator(hp_model)
+                model_ = models.PatchGANDiscriminator(hp_model)  # TODO: add option for selecting discriminator
             else:
                 raise ValueError(f"No key such as {key}")
 
@@ -64,7 +67,6 @@ class FontLightningModule(pl.LightningModule):
         metrics_dict['lpips'] = lpips.LPIPS(net='vgg')
         return metrics_dict
 
-    @override
     def configure_optimizers(self):
         optims = {}
         for key, args_model in self.args.models.items():
@@ -91,7 +93,6 @@ class FontLightningModule(pl.LightningModule):
 
         return optim_list
 
-    @override
     def forward(self, content_images, style_images):
         return self.networks['g']((content_images, style_images))
 
@@ -141,7 +142,10 @@ class FontLightningModule(pl.LightningModule):
 
         return loss, logs, metrics
 
-    @override
+    @property
+    def automatic_optimization(self):
+        return False
+
     def training_step(self, batch, batch_idx):
         # forward
         loss, logs, metrics = self.common_forward(batch, batch_idx)
@@ -149,34 +153,32 @@ class FontLightningModule(pl.LightningModule):
         # backward
         opts = self.optimizers()
 
-        # opts[self.opt_tag['g']].zero_grad()
-        opts.zero_grad()
+        opts[self.opt_tag['g']].zero_grad()
         self.manual_backward(loss['g_backward'])
 
-        # if 'd_content' in self.module_keys:
-        #     if self.train_d_content:
-        #         opts[self.opt_tag['d_content']].zero_grad()
-        #         self.manual_backward(loss['dcontent_backward'])
+        if 'd_content' in self.module_keys:
+            if self.train_d_content:
+                opts[self.opt_tag['d_content']].zero_grad()
+                self.manual_backward(loss['dcontent_backward'])
 
-        # if 'd_style' in self.module_keys:
-        #     if self.train_d_style:
-        #         opts[self.opt_tag['d_style']].zero_grad()
-        #         self.manual_backward(loss['dstyle_backward'])
+        if 'd_style' in self.module_keys:
+            if self.train_d_style:
+                opts[self.opt_tag['d_style']].zero_grad()
+                self.manual_backward(loss['dstyle_backward'])
 
-        opts.step()
+        opts[self.opt_tag['g']].step()
 
-        # if 'd_content' in self.module_keys:
-        #     if self.train_d_content:
-        #         opts[self.opt_tag['d_content']].step()
+        if 'd_content' in self.module_keys:
+            if self.train_d_content:
+                opts[self.opt_tag['d_content']].step()
 
-        # if 'd_style' in self.module_keys:
-        #     if self.train_d_style:
-        #         opts[self.opt_tag['d_style']].step()
+        if 'd_style' in self.module_keys:
+            if self.train_d_style:
+                opts[self.opt_tag['d_style']].step()
 
         if self.global_step % self.args.logging.freq['train'] == 0:
             self.custom_log(loss, metrics, logs, mode='train')
 
-    @override
     def validation_step(self, batch, batch_idx):
         loss, logs, metrics = self.common_forward(batch, batch_idx)
         self.custom_log(loss, metrics, logs, mode='eval')
@@ -186,18 +188,16 @@ class FontLightningModule(pl.LightningModule):
         dataset_config = getattr(self.args.datasets, mode)
         dataset = dataset_cls(dataset_config, mode=mode)
         dataloader = DataLoader(dataset,
-                                shuffle=dataset_config.shuffle if mode == 'train' else False,
+                                shuffle=dataset_config.shuffle,
                                 batch_size=dataset_config.batch_size,
                                 num_workers=dataset_config.num_workers,
                                 drop_last=True)
 
         return dataloader
 
-    @override
     def train_dataloader(self):
         return self.common_dataloader(mode='train')
 
-    @override
     def val_dataloader(self):
         return self.common_dataloader(mode='eval')
 
@@ -222,9 +222,7 @@ class FontLightningModule(pl.LightningModule):
         pred_generated = self.networks['d_content'](torch.cat([content_images, generated_images], dim=1))
         loss['g_gan_content'] = self.losses['GANLoss_content'](pred_generated, True, for_discriminator=False)
 
-        if self.apply_d_content:
-            assert self.train_d_content
-            loss['g_backward'] += loss['g_gan_content']
+        loss['g_backward'] += loss['g_gan_content']
         return loss
 
     def d_content_loss_for_D(self, content_images, generated_images, gt_images, loss):
@@ -234,8 +232,8 @@ class FontLightningModule(pl.LightningModule):
                 pred_gt_images = self.networks['d_content'](torch.cat([content_images, gt_images], dim=1))
                 pred_generated_images = self.networks['d_content'](torch.cat([content_images, generated_images], dim=1))
 
-                loss['dcontent_gt'] = self.losses['GANLoss_content'](pred_gt_images, True)
-                loss['dcontent_gen'] = self.losses['GANLoss_content'](pred_generated_images, False)
+                loss['dcontent_gt'] = self.losses['GANLoss_content'](pred_gt_images, True, for_discriminator=True)
+                loss['dcontent_gen'] = self.losses['GANLoss_content'](pred_generated_images, False, for_discriminator=True)
                 loss['dcontent_backward'] = (loss['dcontent_gt'] + loss['dcontent_gen'])
 
         return loss
@@ -244,17 +242,16 @@ class FontLightningModule(pl.LightningModule):
         pred_generated = self.networks['d_style'](torch.cat([style_images, generated_images], dim=1))
         loss['g_gan_style'] = self.losses['GANLoss_style'](pred_generated, True, for_discriminator=False)
 
-        if self.apply_d_style:
-            assert self.train_d_style
-            loss['g_backward'] += loss['g_gan_style']
+        assert self.train_d_style
+        loss['g_backward'] += loss['g_gan_style']
         return loss
 
     def d_style_loss_for_D(self, style_images, generated_images, gt_images, loss):
         pred_gt_images = self.networks['d_style'](torch.cat([style_images, gt_images], dim=1))
         pred_generated_images = self.networks['d_style'](torch.cat([style_images, generated_images], dim=1))
 
-        loss['dstyle_gt'] = self.losses['GANLoss_style'](pred_gt_images, True)
-        loss['dstyle_gen'] = self.losses['GANLoss_style'](pred_generated_images, False)
+        loss['dstyle_gt'] = self.losses['GANLoss_style'](pred_gt_images, True, for_discriminator=True)
+        loss['dstyle_gen'] = self.losses['GANLoss_style'](pred_generated_images, False, for_discriminator=True)
         loss['dstyle_backward'] = (loss['dstyle_gt'] + loss['dstyle_gen'])
 
         return loss

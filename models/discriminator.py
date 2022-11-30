@@ -6,8 +6,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # FIXME
-class Discriminator(nn.Module):
+
+
+class PatchGANDiscriminator(nn.Module):
     """Defines a PatchGAN discriminator"""
+
     def __init__(self, hp, ndf=64, n_layers=3, norm_layer=nn.BatchNorm2d):
         """Construct a PatchGAN discriminator
 

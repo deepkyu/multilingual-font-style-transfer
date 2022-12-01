@@ -7,7 +7,7 @@ datasets:
     reference_imgs:
       replace: False
       char: &reference_char 1
-      style: &reference_style 5
+      style: &reference_style 6
 
     squeeze_gray: True
     transform:

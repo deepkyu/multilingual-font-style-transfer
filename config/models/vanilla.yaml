@@ -23,7 +23,7 @@ models:
     init_gain: 0.02
 
   D_content:
-    in_channels: 2
+    in_channels: 2 # char + 1
     class: models.discriminator.PatchGANDiscriminator
     optim:
       class: torch.optim.Adam
@@ -33,7 +33,7 @@ models:
       lr_decay_iters: 1000
 
   D_style:
-    in_channels: 6
+    in_channels: 7 # style + 1
     class: models.discriminator.PatchGANDiscriminator
     optim:
       class: torch.optim.Adam

@@ -2,7 +2,7 @@ logging:
   dry_run: False
   device: cuda
   log_dir: /data2/hksong/LOG/font
-  seed: google-font-patch-full
+  seed: ftgan-patch-full
   freq:
     train: 100 # step
 

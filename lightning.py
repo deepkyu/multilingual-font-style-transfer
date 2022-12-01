@@ -11,7 +11,7 @@ import datasets
 from evaluator.ssim import SSIM, MSSSIM
 import lpips
 from models.loss import GANHingeLoss
-from utils import set_logger, magic_image_handler, override
+from utils import set_logger, magic_image_handler
 
 
 class FontLightningModule(pl.LightningModule):

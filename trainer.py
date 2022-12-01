@@ -65,7 +65,8 @@ def main():
     logger = TensorBoardLogger(str(logging_dir), name=str(hp.logging.seed))
 
     # set checkpoing callback
-    weights_save_path = logging_dir / 'checkpoint'
+    weights_save_path = logging_dir / 'checkpoint' / str(hp.logging.seed)
+    weights_save_path.mkdir(exist_ok=True)
     checkpoint_callback = ModelCheckpoint(
         dirpath=str(weights_save_path),
         **pl_config.checkpoint.callback

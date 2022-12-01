@@ -6,10 +6,10 @@ datasets:
     imsize: 64
     reference_imgs:
       replace: False
-      char: 1
-      style: 5
+      char: &reference_char 1
+      style: &reference_style 6
 
-    squeeze_gray: True
+    squeeze_gray: &squeeze_gray True
     transform:
     # TODO
 
@@ -24,10 +24,10 @@ datasets:
     imsize: 64
     reference_imgs:
       replace: False
-      char: 1
-      style: 5
+      char: *reference_char
+      style: *reference_style
 
-    squeeze_gray: True
+    squeeze_gray: *squeeze_gray
     transform:
     # TODO
 

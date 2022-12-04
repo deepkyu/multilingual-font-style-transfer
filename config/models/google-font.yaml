@@ -33,7 +33,7 @@ models:
       lr_decay_iters: 1000
 
   D_style:
-    in_channels: 7 # style + 1
+    in_channels: 6 # style + 1
     class: models.discriminator.PatchGANDiscriminator
     optim:
       class: torch.optim.Adam

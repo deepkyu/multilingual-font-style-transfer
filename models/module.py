@@ -1,12 +1,15 @@
 import torch
 import torch.nn as nn
 
+
 class Conv2d(nn.Module):
-    def __init__(self, in_dim, out_dim, ks, stride, padding, residual=False):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1,
+                 padding=0, padding_mode='zeros', bias=True, residual=False):
         super(Conv2d, self).__init__()
         self.conv_block = nn.Sequential(
-            nn.Conv2d(in_dim, out_dim, ks, stride, padding),
-            nn.BatchNorm2d(out_dim)
+            nn.Conv2d(in_channels, out_channels, kernel_size, stride,
+                      padding, padding_mode=padding_mode, bias=bias),
+            nn.BatchNorm2d(out_channels)
         )
         self.residual = residual
         self.act = nn.ReLU()
@@ -18,94 +21,88 @@ class Conv2d(nn.Module):
         out = self.act(out)
         return out
 
-class ResnetBlock(nn.Module):
-    def __init__(self, channel, padding_type, norm_layer):
-        super().__init__()
-        block = [nn.ReflectionPad2d(1)] if padding_type == 'reflect' else []
-        p = 1 if padding_type == 'zero' else 0
-        
-        if padding_type not in ['reflect', 'zero']:
-            raise NotImplementedError(f"{padding_type} is not supported!")
 
-        block += [
-            nn.Conv2d(channel, channel, kernel_size=3, padding=p, bias=False),
-            norm_layer(channel),
-        ]
-        
-        self.block = nn.Sequential(*block)
+class ResnetBlock(nn.Module):
+    def __init__(self, channel, padding_mode, norm_layer=nn.BatchNorm2d, bias=False):
+        super().__init__()
+        if padding_mode not in ['reflect', 'zero']:
+            raise NotImplementedError(f"{padding_mode} is not supported!")
+
+        self.block = nn.Sequential(
+            nn.Conv2d(channel, channel, kernel_size=3, padding=1, padding_mode=padding_mode, bias=bias),
+            norm_layer(channel)
+        )
         self.act = nn.ReLU()
 
     def forward(self, x):
-        out = x + self.block(x)
+        out = self.block(x)
+        out = out + x
         out = self.act(out)
         return out
 
 
-class ResidualBlock(nn.Module):
+class ResidualBlocks(nn.Module):
     def __init__(self, channel, n_blocks=6):
         super().__init__()
         model = []
         for i in range(n_blocks):  # add ResNet blocks
-            model += [ResnetBlock(channel, padding_type='reflect', norm_layer=nn.BatchNorm2d)]
-        
+            model += [ResnetBlock(channel, padding_mode='reflect')]
+
         self.module = nn.Sequential(*model)
-        
+
     def forward(self, x):
         return self.module(x)
-    
 
-class FTransGANSelfAttentionBlock(nn.Module):
-    """ Self attention Layer from FTransGAN
-    """
+
+class SelfAttentionBlock(nn.Module):
 
     def __init__(self, in_dim):
         super().__init__()
-        self.attention_feature_dim = in_dim // 8
-        self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=self.attention_feature_dim, kernel_size=1)
-        self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=self.attention_feature_dim, kernel_size=1)
+        self.feature_dim = in_dim // 8
+        self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=self.feature_dim, kernel_size=1)
+        self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=self.feature_dim, kernel_size=1)
         self.value_conv = nn.Conv2d(in_channels=in_dim, out_channels=in_dim, kernel_size=1)
         self.gamma = nn.Parameter(torch.zeros(1))
         self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x):
-        m_batchsize, C, width, height = x.size()
-        proj_query = self.query_conv(x).view(m_batchsize, -1, width * height).permute(0, 2, 1)  # B X CX(N)
-        proj_key = self.key_conv(x).view(m_batchsize, -1, width * height)  # B X C x (*W*H)
-        energy = torch.bmm(proj_query, proj_key)  # transpose check
-        attention = self.softmax(energy)  # BX (N) X (N)
-        proj_value = self.value_conv(x).view(m_batchsize, -1, width * height)  # B X C X N
+        B, C, H, W = x.size()
+        _query = self.query_conv(x).view(B, -1, H * W).permute(0, 2, 1)  # B x C x (H'*W')
+        _key = self.key_conv(x).view(B, -1, H * W)  # B x C x (H'*W')
+        attn_matrix = torch.bmm(_query, _key)
+        attention = self.softmax(attn_matrix)  # B x (H'*W') x (H'*W')
+        _value = self.value_conv(x).view(B, -1, H * W)  # B X C X (H * W)
 
-        out = torch.bmm(proj_value, attention.permute(0, 2, 1))
-        out = out.view(m_batchsize, C, width, height)
+        out = torch.bmm(_value, attention.permute(0, 2, 1))
+        out = out.view(B, C, H, W)
 
         out = self.gamma * out + x
         return out
 
 
-class FTransGANLocalAttentionBlock(nn.Module):
-    """from FTransGAN
-    """
-    def __init__(self, in_channels):
+class ContextAwareAttentionBlock(nn.Module):
+
+    def __init__(self, in_channels, hidden_dim=128):
         super().__init__()
-        self.hidden_dim = 100
-        self.self_atten = FTransGANSelfAttentionBlock(in_channels)
-        self.attention = nn.Linear(in_channels, self.hidden_dim)
-        self.context_vec = nn.Linear(self.hidden_dim, 1, bias=False)
+        self.self_attn = SelfAttentionBlock(in_channels)
+        self.fc = nn.Linear(in_channels, hidden_dim)
+        self.context_vector = nn.Linear(hidden_dim, 1, bias=False)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, style_features):
-        B, C, H, W = style_features.shape
-        h = self.self_atten(style_features)
+        B, C, H, W = style_features.size()
+        h = self.self_attn(style_features)
         h = h.permute(0, 2, 3, 1).reshape(-1, C)
-        h = torch.tanh(self.attention(h))  # (B*H*W, self.hidden_dim)
-        h = self.context_vec(h)  # (B*H*W, 1)
-        attention_map = self.softmax(h.view(B, H * W)).view(B, 1, H, W)  # (B, 1, H, W)
-        style_features = torch.sum(style_features * attention_map, dim=[2, 3])
-        return style_features
-    
-class FTransGANLayerAttentionBlock(nn.Module):
+        h = torch.tanh(self.fc(h))  # (B*H*W) x self.hidden_dim
+        h = self.context_vector(h)  # (B*H*W) x 1
+        attention_score = self.softmax(h.view(B, H * W)).view(B, 1, H, W)  # B x 1 x H x W
+        return torch.sum(style_features * attention_score, dim=[2, 3])  # B x C
+
+
+class LayerAttentionBlock(nn.Module):
     """from FTransGAN
     """
+
     def __init__(self, in_channels):
         super().__init__()
         self.in_channels = in_channels
@@ -128,28 +125,26 @@ class FTransGANLayerAttentionBlock(nn.Module):
                           style_features_3 * weight.narrow(1, 2, 1))
         style_features = style_features.view(B, self.in_channels, 1, 1)
         return style_features
-    
-class FTransGANAttentionBlock(nn.Module):
+
+
+class StyleAttentionBlock(nn.Module):
     """from FTransGAN
     """
+
     def __init__(self, in_channels):
         super().__init__()
         self.num_local_attention = 3
         for module_idx in range(1, self.num_local_attention + 1):
             self.add_module(f"local_attention_{module_idx}",
-                            FTransGANLocalAttentionBlock(in_channels))
-            
+                            ContextAwareAttentionBlock(in_channels))
+
         for module_idx in range(1, self.num_local_attention):
             self.add_module(f"downsample_{module_idx}",
-                            nn.Sequential(
-                nn.Conv2d(in_channels, in_channels,
-                          kernel_size=3, stride=2, padding=1, bias=False),
-                nn.BatchNorm2d(in_channels),
-                nn.ReLU()
-            ))
-            
-        self.add_module(f"layer_attention", FTransGANLayerAttentionBlock(in_channels))
-        
+                            Conv2d(in_channels, in_channels,
+                                   kernel_size=3, stride=2, padding=1, bias=False))
+
+        self.add_module(f"layer_attention", LayerAttentionBlock(in_channels))
+
     def forward(self, x, B, K):
         feature_1 = self.local_attention_1(x)
 

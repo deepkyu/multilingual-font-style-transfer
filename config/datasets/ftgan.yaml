@@ -1,5 +1,5 @@
 datasets:
-  type: GoogleFontDataset
+  type: FTGANDataset
   train:
     split: auto
 
@@ -7,9 +7,9 @@ datasets:
     reference_imgs:
       replace: False
       char: &reference_char 1
-      style: &reference_style 5
+      style: &reference_style 6
 
-    squeeze_gray: &squeeze_gray True
+    squeeze_gray: True
     transform:
     # TODO
 
@@ -27,11 +27,11 @@ datasets:
       char: *reference_char
       style: *reference_style
 
-    squeeze_gray: *squeeze_gray
+    squeeze_gray: True
     transform:
     # TODO
 
     # loader configs
     shuffle: True
-    batch_size: 1
+    batch_size: 16
     num_workers: 4

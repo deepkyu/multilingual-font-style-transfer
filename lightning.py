@@ -22,7 +22,7 @@ class FontLightningModule(pl.LightningModule):
         self.losses = {}
         self.metrics = {}
         self.networks = nn.ModuleDict(self.build_models())
-        self.module_keys = self.networks.keys()
+        self.module_keys = list(self.networks.keys())
 
         self.losses = self.build_losses()
         self.metrics = self.build_metrics()
@@ -98,7 +98,6 @@ class FontLightningModule(pl.LightningModule):
 
     def common_forward(self, batch, batch_idx):
         loss = {}
-        metrics = {}
         logs = {}
 
         content_images = batch['content_images']
@@ -136,19 +135,20 @@ class FontLightningModule(pl.LightningModule):
         logs['gt_images'] = gt_images
         logs['generated_images'] = generated_images
 
-        if self.global_step % self.args.logging.freq['train'] == 0:
-            with torch.no_grad():
-                metrics.update(self.calc_metrics(gt_images, generated_images))
-
-        return loss, logs, metrics
+        return loss, logs
 
     @property
     def automatic_optimization(self):
         return False
 
     def training_step(self, batch, batch_idx):
+        metrics = {}
         # forward
-        loss, logs, metrics = self.common_forward(batch, batch_idx)
+        loss, logs = self.common_forward(batch, batch_idx)
+
+        if self.global_step % self.args.logging.freq['train'] == 0:
+            with torch.no_grad():
+                metrics.update(self.calc_metrics(logs['gt_images'], logs['generated_images']))
 
         # backward
         opts = self.optimizers()
@@ -180,8 +180,23 @@ class FontLightningModule(pl.LightningModule):
             self.custom_log(loss, metrics, logs, mode='train')
 
     def validation_step(self, batch, batch_idx):
-        loss, logs, metrics = self.common_forward(batch, batch_idx)
+        metrics = {}
+        loss, logs = self.common_forward(batch, batch_idx)
         self.custom_log(loss, metrics, logs, mode='eval')
+
+    def test_step(self, batch, batch_idx):
+        metrics = {}
+        loss, logs = self.common_forward(batch, batch_idx)
+        metrics.update(self.calc_metrics(logs['gt_images'], logs['generated_images']))
+
+        return loss, logs, metrics
+
+    def test_epoch_end(self, test_step_outputs):
+        # do something with the outputs of all test batches
+        # all_test_preds = test_step_outputs.metrics
+        print(f"SSIM: {np.mean([x[2]['SSIM'].cpu().numpy() for x in test_step_outputs[:]])}")
+        print(f"MSSSIM: {np.mean([x[2]['MSSSIM'].cpu().numpy() for x in test_step_outputs[:]])}")
+        # print(f"LPIPS: {torch.mean([x[2]['LPIPS'] for x in test_step_outputs[:]])}")
 
     def common_dataloader(self, mode='train'):
         dataset_cls = getattr(datasets, self.args.datasets.type)
@@ -199,6 +214,9 @@ class FontLightningModule(pl.LightningModule):
         return self.common_dataloader(mode='train')
 
     def val_dataloader(self):
+        return self.common_dataloader(mode='eval')
+
+    def test_dataloader(self):
         return self.common_dataloader(mode='eval')
 
     def calc_metrics(self, gt_images, generated_images):

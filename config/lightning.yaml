@@ -4,7 +4,7 @@ pl_config:
       save_top_k: -1
       monitor: 'g/train_L1'
       verbose: True
-      every_n_epochs: 10 #epochs
+      every_n_epochs: 1 #epochs
 
   trainer:
     gradient_clip_val: 0

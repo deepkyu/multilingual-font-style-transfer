@@ -198,13 +198,14 @@ class FontLightningModule(pl.LightningModule):
         print(f"MSSSIM: {np.mean([x[2]['MSSSIM'].cpu().numpy() for x in test_step_outputs[:]])}")
         # print(f"LPIPS: {torch.mean([x[2]['LPIPS'] for x in test_step_outputs[:]])}")
 
-    def common_dataloader(self, mode='train'):
+    def common_dataloader(self, mode='train', batch_size=None):
         dataset_cls = getattr(datasets, self.args.datasets.type)
         dataset_config = getattr(self.args.datasets, mode)
         dataset = dataset_cls(dataset_config, mode=mode)
+        _batch_size = batch_size if batch_size is not None else dataset_config.batch_size
         dataloader = DataLoader(dataset,
                                 shuffle=dataset_config.shuffle,
-                                batch_size=dataset_config.batch_size,
+                                batch_size=_batch_size,
                                 num_workers=dataset_config.num_workers,
                                 drop_last=True)
 

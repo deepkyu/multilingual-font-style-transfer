@@ -234,7 +234,7 @@ class FontLightningModule(pl.LightningModule):
         return self.common_dataloader(mode='eval')
 
     def test_dataloader(self):
-        return self.common_dataloader(mode='train')
+        return self.common_dataloader(mode='eval')
 
     def calc_metrics(self, gt_images, generated_images):
         """

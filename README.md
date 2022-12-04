@@ -4,7 +4,7 @@ This is the unofficial implementation for the paper [Few-shot Font Style Transfe
 
 ## Updates
 
-### `2022. 12. 04`
+`2022.12.04`
 
 This code is a part of my final term project in _Special Topics in Computer Science - Introduction to Deep Learning (CS492I)_ (2022 Fall, KAIST).  
 The goal of my proposal is to generate novel fonts for a certain language, whose style is transferred from fonts for other languages.  
@@ -16,9 +16,9 @@ Hope that I could finish this project successfully in some days :)
 
 ## To be continued...
 
-- [] how to see the evaluation results
-- [] how to train the model
-- [] what will I do for the next step...
+- [ ] how to see the evaluation results
+- [ ] how to train the model
+- [ ] what will I do for the next step...
 
 - [x] finish the military service in South Korea
-- [] finish the undergraduate course and (might) go to graduate school...
+- [ ] finish the undergraduate course and (might) go to graduate school...

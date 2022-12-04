@@ -14,6 +14,10 @@ However, I failed to generate fonts for unseen languages. Instead, I'll share so
 
 Hope that I could finish this project successfully in some days :)
 
+## Main concept
+
+![overfitted-result](./docs/example-from-training-dataset.png)
+
 ## To be continued...
 
 - [ ] how to see the evaluation results

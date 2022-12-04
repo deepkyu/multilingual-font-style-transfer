@@ -21,3 +21,4 @@ font-image
 
 # except
 !google_ofl_metadata.json
+!docs/*

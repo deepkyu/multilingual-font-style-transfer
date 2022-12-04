@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 import importlib
+import PIL.Image as Image
 
 import models
 import datasets
@@ -12,6 +13,8 @@ from evaluator.ssim import SSIM, MSSSIM
 import lpips
 from models.loss import GANHingeLoss
 from utils import set_logger, magic_image_handler
+
+NUM_TEST_SAVE_IMAGE = 10
 
 
 class FontLightningModule(pl.LightningModule):
@@ -189,14 +192,27 @@ class FontLightningModule(pl.LightningModule):
         loss, logs = self.common_forward(batch, batch_idx)
         metrics.update(self.calc_metrics(logs['gt_images'], logs['generated_images']))
 
+        if batch_idx < NUM_TEST_SAVE_IMAGE:
+            for key, value in logs.items():
+                if 'image' in key:
+                    sample_images = (magic_image_handler(value) * 255)[..., 0].astype(np.uint8)
+                    Image.fromarray(sample_images).save(f"{batch_idx:02d}_{key}.png")
+
         return loss, logs, metrics
 
     def test_epoch_end(self, test_step_outputs):
         # do something with the outputs of all test batches
         # all_test_preds = test_step_outputs.metrics
-        print(f"SSIM: {np.mean([x[2]['SSIM'].cpu().numpy() for x in test_step_outputs[:]])}")
-        print(f"MSSSIM: {np.mean([x[2]['MSSSIM'].cpu().numpy() for x in test_step_outputs[:]])}")
-        # print(f"LPIPS: {torch.mean([x[2]['LPIPS'] for x in test_step_outputs[:]])}")
+        ssim_list = []
+        msssim_list = []
+
+        for _, test_output in enumerate(test_step_outputs):
+
+            ssim_list.append(test_output[2]['SSIM'].cpu().numpy())
+            msssim_list.append(test_output[2]['MSSSIM'].cpu().numpy())
+
+        print(f"SSIM: {np.mean(ssim_list)}")
+        print(f"MSSSIM: {np.mean(msssim_list)}")
 
     def common_dataloader(self, mode='train', batch_size=None):
         dataset_cls = getattr(datasets, self.args.datasets.type)
@@ -218,7 +234,7 @@ class FontLightningModule(pl.LightningModule):
         return self.common_dataloader(mode='eval')
 
     def test_dataloader(self):
-        return self.common_dataloader(mode='eval')
+        return self.common_dataloader(mode='train')
 
     def calc_metrics(self, gt_images, generated_images):
         """

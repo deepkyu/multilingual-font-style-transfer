@@ -2,7 +2,7 @@ datasets:
   type: FTGANDataset
   train:
     split: auto
-    font_dir: &font_dir /data2/hksong/DATA/ftgan-font/font
+    font_dir: &font_dir ./data/ftgan-fonts
     test_unknown_content: &test_unknown_content True
     imsize: 64
     reference_imgs:

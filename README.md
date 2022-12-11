@@ -1,6 +1,6 @@
 # Font Style Transfer across multiple languages
 
-This is the unofficial implementation for the paper [Few-shot Font Style Transfer between Different Languages](https://openaccess.thecvf.com/content/WACV2021/papers/Li_Few-Shot_Font_Style_Transfer_Between_Different_Languages_WACV_2021_paper.pdf). The original implementation from the author can be found [here](https://github.com/ligoudaner377/font_translator_gan).
+This is an unofficial implementation for the paper [Few-shot Font Style Transfer between Different Languages](https://openaccess.thecvf.com/content/WACV2021/papers/Li_Few-Shot_Font_Style_Transfer_Between_Different_Languages_WACV_2021_paper.pdf). The original implementation from the author can be found [here](https://github.com/ligoudaner377/font_translator_gan).
 
 ## Setup
 

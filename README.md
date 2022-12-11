@@ -55,12 +55,13 @@ This code is a part of my final term project in _Special Topics in Computer Scie
 The goal of my proposal is to generate novel fonts for a certain language, whose style is transferred from fonts for other languages.  
 In this project, I used [google/font](https://github.com/google/fonts) repository to define [Google Fonts](https://fonts.google.com/) dataset, which contains font images from 10 different languages.  
 
-However, I failed to generate fonts for unseen languages. Instead, I'll share some results in training dataset to explain the core concept of this project.
+However, I failed to introduce the font generation models for unseen languages. Instead, I'll share some results in training dataset to explain the core concept of this project.
 
 Hope that I could finish this project successfully in some days :)
 
 ## Main concept
 
+![evaluation-result](./docs/example-from-evaluation-dataset.png)
 ![overfitted-result](./docs/example-from-training-dataset.png)
 
 ## To be continued...

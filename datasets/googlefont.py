@@ -15,7 +15,6 @@ from tqdm import tqdm
 
 REPEATE_NUM = 100
 
-FONT_DIR = "/data2/hksong/DATA/fonts-image"
 WHITE = 255
 
 MAX_TRIAL = 10
@@ -257,6 +256,8 @@ class GoogleFontDataset(Dataset):
 if __name__ == '__main__':
     hp = OmegaConf.load('config/datasets/googlefont.yaml').datasets.train
     metadata_path = "./lang_set.json"
+    FONT_DIR = "/data2/hksong/DATA/fonts-image"
+
     _dataset = GoogleFontDataset(hp, metadata_path=metadata_path, font_dir=FONT_DIR)
     TEST_ITER_NUM = 4
     for i in range(TEST_ITER_NUM):

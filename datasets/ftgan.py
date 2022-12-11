@@ -11,7 +11,6 @@ import numpy as np
 import PIL.Image as Image
 from torch.utils.data import Dataset
 
-FONT_DIR = "/data2/hksong/DATA/ftgan-font/font"
 WHITE = 255
 
 IMG_EXTENSIONS = [
@@ -22,15 +21,18 @@ IMG_EXTENSIONS = [
 
 
 class FTGANDataset(Dataset):
-    def __init__(self, args, mode='train', font_dir=FONT_DIR):
+    def __init__(self, args, mode='train'):
         super(FTGANDataset, self).__init__()
         self.args = args
         self.mode = mode
 
         if self.mode == 'train':
-            self.font_dir = Path(font_dir) / 'train'
+            self.font_dir = Path(args.font_dir) / 'train'
         else:
-            self.font_dir = Path(font_dir) / 'test_unknown_content'  # test_unknown_style
+            if args.test_unknown_content:
+                self.font_dir = Path(args.font_dir) / 'test_unknown_content'
+            else:
+                self.font_dir = Path(args.font_dir) / 'test_unknown_style'
 
         # Chinese(content) to English(style)
 

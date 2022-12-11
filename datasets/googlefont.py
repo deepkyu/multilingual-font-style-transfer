@@ -27,11 +27,10 @@ english_set = list(_upper_case.union(_digits))
 
 class GoogleFontDataset(Dataset):
     def __init__(self, args, mode='train',
-                 metadata_path="./lang_set.json",
-                 font_dir=FONT_DIR):
+                 metadata_path="./lang_set.json"):
         super(GoogleFontDataset, self).__init__()
         self.args = args
-        self.font_dir = Path(font_dir)
+        self.font_dir = Path(args.font_dir)
         self.mode = mode
         self.lang_list = sorted([x.stem for x in self.font_dir.iterdir() if x.is_dir()])
         self.min_tight_bound = 10000

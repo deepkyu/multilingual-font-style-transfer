@@ -2,7 +2,7 @@ datasets:
   type: GoogleFontDataset
   train:
     split: auto
-
+    font_dir: &font_dir /data2/hksong/DATA/fonts-image
     imsize: 64
     reference_imgs:
       replace: False
@@ -20,7 +20,7 @@ datasets:
 
   eval:
     split: auto
-
+    font_dir: *font_dir
     imsize: 64
     reference_imgs:
       replace: False

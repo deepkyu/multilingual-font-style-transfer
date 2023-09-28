@@ -2,17 +2,15 @@ pl_config:
   checkpoint:
     callback:
       save_top_k: -1
-      monitor: 'g/train_L1'
       verbose: True
-      every_n_epochs: 1 #epochs
+      every_n_epochs: 5 #epochs
 
   trainer:
     gradient_clip_val: 0
     max_epochs: 2000
     num_sanity_val_steps: 1
     fast_dev_run: False
-    check_val_every_n_epoch: 1
-    progress_bar_refresh_rate: 1
+    check_val_every_n_epoch: 5
     # distributed_backend: 'ddp'
-    accelerator: 'ddp'
+    accelerator: 'cuda'
     benchmark: True

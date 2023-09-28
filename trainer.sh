@@ -1,0 +1,1 @@
+python trainer.py --config ./config/setting-google-font.yaml --gpus 0,1,2,3

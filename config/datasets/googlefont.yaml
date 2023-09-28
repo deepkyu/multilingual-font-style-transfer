@@ -2,7 +2,7 @@ datasets:
   type: GoogleFontDataset
   train:
     split: auto
-    font_dir: &font_dir ./data/google-fonts
+    font_dir: &font_dir ../DATA/fonts-image-20230929
     imsize: 64
     reference_imgs:
       replace: False
@@ -16,7 +16,7 @@ datasets:
     # loader configs
     shuffle: True
     batch_size: 64
-    num_workers: 8
+    num_workers: 12
 
   eval:
     split: auto

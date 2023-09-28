@@ -1,7 +1,7 @@
 logging:
   dry_run: False
   device: cuda
-  log_dir: /data2/hksong/LOG/font
+  log_dir: /ssd1/hksong/LOG/font
   seed: ftgan-patch-full
   freq:
     train: 100 # step

@@ -13,7 +13,7 @@ import torch
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-REPEATE_NUM = 100
+REPEATE_NUM = 10000
 
 WHITE = 255
 
@@ -22,6 +22,8 @@ MAX_TRIAL = 10
 _upper_case = set(map(lambda s: f"{ord(s):04X}", string.ascii_uppercase))
 _digits = set(map(lambda s: f"{ord(s):04X}", string.digits))
 english_set = list(_upper_case.union(_digits))
+
+NOTO_FONT_DIRNAME = "Noto"
 
 
 class GoogleFontDataset(Dataset):
@@ -112,8 +114,10 @@ class GoogleFontDataset(Dataset):
 
                 for png_path in png_list:
 
-                    image_content_dict[png_path.stem] = self._get_content_image(png_path)
-                    image_style_dict[png_path.stem] = self._get_style_image(png_path)
+                    # image_content_dict[png_path.stem] = self._get_content_image(png_path)
+                    # image_style_dict[png_path.stem] = self._get_style_image(png_path)
+                    image_content_dict[png_path.stem] = png_path
+                    image_style_dict[png_path.stem] = png_path
                     num_char += 1
 
                 font_content_dict[font_dir.stem] = image_content_dict
@@ -183,10 +187,15 @@ class GoogleFontDataset(Dataset):
             content_char = random.choice(content_unicode_list)
             style_chars = random.sample(style_unicode_list, k=self.args.reference_imgs.style)
 
-        fonts = random.sample(self.content_meta[lang_content].keys(),
-                              k=self.args.reference_imgs.char + 1)
-        content_fonts = fonts[:self.args.reference_imgs.char]
-        style_font = fonts[-1]
+        # fonts = random.sample(self.content_meta[lang_content].keys(),
+        #                       k=self.args.reference_imgs.char + 1)
+        # content_fonts = fonts[:self.args.reference_imgs.char]
+        # style_font = fonts[-1]
+        
+        style_font_list = list(self.content_meta[lang_content].keys())
+        style_font_list.remove(NOTO_FONT_DIRNAME)
+        style_font = random.choice(style_font_list)
+        content_fonts = [NOTO_FONT_DIRNAME]
 
         content_fonts_image = [self.content_meta[lang_content][x][content_char] for x in content_fonts]
         style_chars_image = [self.content_meta[lang_content][style_font][x] for x in style_chars]
@@ -199,6 +208,10 @@ class GoogleFontDataset(Dataset):
         #                                                                patch_per_image=self.args.reference_imgs.style // self.args.reference_imgs.char))
 
         target_image = self.content_meta[lang_content][style_font][content_char]
+        
+        content_fonts_image = [self._get_content_image(image_path) for image_path in content_fonts_image]
+        style_chars_image = [self._get_content_image(image_path) for image_path in style_chars_image]
+        target_image = self._get_content_image(target_image)
 
         return content_char, content_fonts, content_fonts_image, style_font, style_chars, style_chars_image, target_image
 

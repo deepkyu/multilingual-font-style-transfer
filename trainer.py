@@ -77,8 +77,6 @@ def main():
         logger=logger,
         gpus=-1 if args.gpus is None else args.gpus,
         callbacks=[checkpoint_callback],
-        weights_save_path=weights_save_path,
-        resume_from_checkpoint=args.resume_checkpoint_path,
         **pl_config.trainer
     )
 

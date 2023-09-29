@@ -2,6 +2,14 @@
 
 This is an unofficial implementation for the paper [Few-shot Font Style Transfer between Different Languages](https://openaccess.thecvf.com/content/WACV2021/papers/Li_Few-Shot_Font_Style_Transfer_Between_Different_Languages_WACV_2021_paper.pdf). The original implementation from the author can be found [here](https://github.com/ligoudaner377/font_translator_gan).
 
+## News
+
+### Hugging Face Space demo is out!
+[deepkyu/multilingual-font-style-transfer](https://huggingface.co/spaces/deepkyu/multilingual-font-style-transfer)
+
+`2023.09.29` I newly update the code and train the model to support Korean, Japanese, and Chinese characters. The training code has not yet updated in this repo since I have no time to integrate with this code. But I made a Hugging Face Space to show you whether the current "Multilingual Font Style Transfer" makes sense or not. 
+I'll update whenever possible til we can get more established font style transfer model which can support the next multilingual society!
+
 ## Setup
 
 ### Requirements

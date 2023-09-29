@@ -4,7 +4,7 @@ This is an unofficial implementation for the paper [Few-shot Font Style Transfer
 
 ## News
 
-### Hugging Face Space demo is out!
+### 🤗 Hugging Face Space demo is out!
 [deepkyu/multilingual-font-style-transfer](https://huggingface.co/spaces/deepkyu/multilingual-font-style-transfer)
 
 `2023.09.29` I newly update the code and train the model to support Korean, Japanese, and Chinese characters. The training code has not yet updated in this repo since I have no time to integrate with this code. But I made a Hugging Face Space to show you whether the current "Multilingual Font Style Transfer" makes sense or not. 
